@@ -1,41 +1,69 @@
-# Smart Waste Detector with YOLO and Streamlit
+# Waste Vision and ML Fundamentals Lab
 
-A computer-vision demo that runs a custom Ultralytics YOLO model on uploaded images or a local webcam feed, displays detected waste classes, and maps each class to a configurable dustbin category.
+An original learning-focused machine-learning portfolio maintained by Anshuman Bakshi. The repository now contains two parts:
 
-> **Status:** educational prototype. Detection quality depends entirely on the training data and the included `best.pt` checkpoint. Dustbin colours and disposal rules vary by city and country; verify local guidance before using the recommendations.
+1. A clean Streamlit application and reusable Python module for running a custom Ultralytics YOLO waste detector.
+2. Four small scikit-learn projects covering classification, regression, clustering, and anomaly detection.
 
-## Features
+> **Repository history note:** GitHub may still display this repository as a fork because fork status is repository metadata. The application code, training/evaluation scripts, tests, ML-basics modules, and documentation on the current branch have been rewritten. A separate non-fork repository is required to remove the fork badge completely.
 
-- Image upload and annotated detections
-- Local webcam inference
-- Adjustable confidence and IoU thresholds
-- Per-class filtering
-- Rule-based waste-class-to-bin mapping
-- Session detection log
-- Waste-count dashboard
-- Downloadable annotated image and CSV session log
+## Why this repository exists
 
-## Tech stack
+The goal is not to present a downloaded checkpoint as original work. The goal is to demonstrate a complete, defensible ML workflow:
 
-- Python
-- Streamlit
-- Ultralytics YOLO
-- OpenCV
-- Pillow
-- NumPy
-- Pandas
+- define the task
+- validate inputs
+- train or load a model
+- evaluate with appropriate metrics
+- expose inference through an application
+- document limitations and provenance
+- write tests and automated checks
 
-## Repository requirements
+No trained waste checkpoint is committed by default because the previous checkpoint did not have sufficient dataset and training provenance. Add a checkpoint locally only after documenting how it was produced.
 
-The application expects a compatible custom model checkpoint named:
+## Repository structure
 
 ```text
-best.pt
+.
+├── app.py                         # Streamlit image-inference interface
+├── train.py                       # Reproducible Ultralytics training entry point
+├── evaluate.py                    # mAP, precision, and recall export
+├── src/
+│   └── waste_detector.py          # Reusable model and image-validation logic
+├── config/
+│   └── waste_bins.json            # Editable disposal-category mapping
+├── models/
+│   └── .gitkeep                   # Put a local best.pt here
+├── tests/
+│   └── test_waste_detector.py
+├── ml_basics/
+│   ├── 01_classification.py
+│   ├── 02_regression.py
+│   ├── 03_clustering.py
+│   ├── 04_anomaly_detection.py
+│   └── README.md                  # Concepts and interview explanations
+├── MODEL_CARD.md
+└── .github/workflows/tests.yml
 ```
 
-The checkpoint must use class names that match the waste categories expected by the interface. This repository does not automatically train a model when the application starts.
+# Part 1: Waste-object detection
+
+## What the application does
+
+The Streamlit app:
+
+- accepts JPG and PNG uploads
+- validates image dimensions
+- loads a configurable local YOLO checkpoint
+- exposes confidence and IoU thresholds
+- returns class labels, confidence values, bounding boxes, and broad disposal categories
+- exports the annotated image
+
+The disposal mapping is educational. Waste rules vary across cities and organisations.
 
 ## Setup
+
+Python 3.10 or 3.11 is recommended.
 
 ```bash
 git clone https://github.com/PseudoOzone/Waste-Detection-using-YOLOv11.git
@@ -50,77 +78,150 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+```
+
+## Run inference
+
+Place a documented checkpoint at:
+
+```text
+models/best.pt
+```
+
+Then run:
+
+```bash
 streamlit run app.py
 ```
 
-Streamlit will print the local application URL in the terminal.
+A different checkpoint path can be provided through:
 
-## Usage
-
-### Image inference
-
-1. Open the **Image Upload** tab.
-2. Upload a JPG, JPEG, or PNG image.
-3. Adjust confidence, IoU, or selected classes in the sidebar.
-4. Review the annotated image and class-to-bin suggestions.
-5. Download the image or session log if needed.
-
-### Webcam inference
-
-1. Run the application on a machine with a locally accessible webcam.
-2. Open the **Webcam** tab.
-3. Enable the webcam checkbox.
-4. Disable it when finished so the camera can be released.
-
-Browser-hosted or cloud deployments may not be able to access `cv2.VideoCapture(0)` on the user's device. The current webcam implementation is intended primarily for local execution.
-
-## Bin mapping
-
-The default mapping is stored in `DUSTBIN_MAP` inside `app.py`.
-
-```python
-DUSTBIN_MAP = {
-    "food": "Brown",
-    "organic": "Brown",
-    "plastic": "Blue",
-    "glass": "Green",
-    "metal": "Blue",
-    "paper": "Blue",
-    "hazardous": "Red",
-    "e-waste": "Red",
-    "non-recyclable": "Black",
-}
+```bash
+YOLO_MODEL_PATH=/path/to/model.pt streamlit run app.py
 ```
 
-Update this mapping for the municipality or organization where the demo is being used.
+## Train your own model
 
-## Known limitations
+Prepare an Ultralytics-compatible `data.yaml`, then run:
 
-- The application fails at startup if `best.pt` is absent or incompatible.
-- Uploaded files are decoded in memory and are not protected by explicit pixel-count or decompression-bomb limits.
-- Webcam inference runs in a Streamlit loop and may block responsive reruns on some systems.
-- A detection can be appended to the session log on every video frame, causing rapid memory growth.
-- Class-to-bin assignment uses substring matching and can misclassify unfamiliar labels.
-- No benchmark, confusion matrix, mAP result, dataset card, or model card is currently included.
-- The application does not identify whether an item is clean, contaminated, recyclable in a specific region, or safe to handle.
+```bash
+python train.py \
+  --data path/to/data.yaml \
+  --base-model yolo11n.pt \
+  --epochs 50 \
+  --image-size 640 \
+  --batch-size 16
+```
 
-## Recommended evaluation additions
+The training script fixes the random seed and enables deterministic training where supported. Hardware and library versions can still affect results.
 
-Before presenting model performance, add:
+## Evaluate a checkpoint
 
-- dataset source and license
-- class counts and train/validation/test split
-- annotation policy
-- per-class precision and recall
-- mAP50 and mAP50-95
-- confusion matrix
-- examples of false positives and false negatives
-- model checkpoint provenance and training configuration
+```bash
+python evaluate.py \
+  --model models/best.pt \
+  --data path/to/data.yaml
+```
 
-## Safety
+The evaluation script writes:
 
-Do not use the detector to make hazardous-material handling decisions. Batteries, chemicals, medical waste, sharp objects, and electronic waste require local safety procedures even when the model assigns a bin colour.
+- mAP50
+- mAP50-95
+- mean precision
+- mean recall
 
-## License
+to `artifacts/yolo_metrics.json`.
 
-Educational and portfolio use only unless a separate license file states otherwise.
+## Object-detection concepts to understand
+
+### Bounding box
+
+A rectangle represented by four coordinates around a detected object.
+
+### Confidence threshold
+
+The minimum model confidence required to keep a prediction. A higher threshold usually reduces false positives but can miss real objects.
+
+### IoU
+
+Intersection over Union measures overlap between two boxes. It is used during evaluation and non-maximum suppression.
+
+### Non-maximum suppression
+
+When several boxes predict the same object, NMS keeps the strongest box and removes highly overlapping duplicates.
+
+### Precision and recall
+
+- Precision asks: of the objects predicted, how many were correct?
+- Recall asks: of the real objects, how many were found?
+
+### mAP
+
+Mean Average Precision summarises precision-recall performance across classes. `mAP50-95` is stricter than `mAP50` because it averages across several IoU thresholds.
+
+# Part 2: ML fundamentals
+
+The `ml_basics` folder contains four executable examples built from scikit-learn datasets or synthetic data.
+
+## 1. Classification
+
+```bash
+python ml_basics/01_classification.py
+```
+
+Uses logistic regression to predict a binary class. It teaches stratified splitting, scaling, class weights, precision, recall, F1, ROC-AUC, and confusion matrices.
+
+## 2. Regression
+
+```bash
+python ml_basics/02_regression.py
+```
+
+Uses ridge regression to predict a continuous value. It teaches MAE, RMSE, R², coefficient regularisation, and the difference between numeric prediction and class prediction.
+
+## 3. Clustering
+
+```bash
+python ml_basics/03_clustering.py
+```
+
+Uses K-Means without labels during training. It teaches unsupervised learning, centroids, feature scaling, silhouette score, and the limitations of choosing `k` in advance.
+
+## 4. Anomaly detection
+
+```bash
+python ml_basics/04_anomaly_detection.py
+```
+
+Uses Isolation Forest on synthetic employee-access features. It teaches rare-event detection, baseline behaviour, false alerts, contamination assumptions, and the precision-recall trade-off. This example is particularly relevant to behavioural security products.
+
+Read `ml_basics/README.md` for interview-ready explanations.
+
+# Tests and automation
+
+Run locally:
+
+```bash
+pytest -q
+```
+
+GitHub Actions performs:
+
+- Python syntax checks
+- unit tests
+- execution smoke tests for all four basic ML projects
+
+# Limitations
+
+- No waste dataset or trained checkpoint is included by default.
+- Disposal recommendations are broad examples, not municipal guidance.
+- A detector cannot determine whether an object is contaminated, safe to handle, or recyclable in a particular location.
+- The basic ML projects are educational and intentionally small.
+- Synthetic anomaly detection is easier than real insider-threat detection.
+- Metrics should only be quoted together with the dataset, split, seed, and experiment configuration.
+
+# Attribution and responsible use
+
+This repository was reworked as a learning portfolio with AI-assisted implementation and review. Anshuman should understand and be able to explain every public claim before presenting it in an interview.
+
+Datasets, pretrained base models, and future checkpoints retain their own licenses and attribution requirements.

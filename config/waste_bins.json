@@ -1,0 +1,12 @@
+{
+  "food": "Organic waste",
+  "organic": "Organic waste",
+  "paper": "Dry recyclable",
+  "plastic": "Dry recyclable",
+  "metal": "Dry recyclable",
+  "glass": "Dry recyclable",
+  "battery": "Hazardous or e-waste",
+  "electronic": "Hazardous or e-waste",
+  "e-waste": "Hazardous or e-waste",
+  "hazardous": "Hazardous or e-waste"
+}
